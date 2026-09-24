@@ -1649,6 +1649,173 @@ pub(in crate::app) fn settings_rtlsdr_tab(
     );
 }
 
+/// Astra918 vendor-interface controls. Values come from firmware snapshots in
+/// `DeviceCaps.settings`; no remembered PC setting is replayed on connect.
+pub(in crate::app) fn settings_astra918_tab(
+    ui: &mut egui::Ui,
+    devices: &[sdroxide_types::Astra918Device],
+    radio_edit: &mut Option<sdroxide_types::RadioConfig>,
+    caps: Option<&sdroxide_types::DeviceCaps>,
+    rescan: &mut bool,
+    can_probe: bool,
+    cmds: &mut Vec<Command>,
+) {
+    let Some(cfg) = radio_edit.as_mut() else {
+        ui.label("Waiting for receiver configuration.");
+        return;
+    };
+    ui.horizontal(|ui| {
+        ui.label("Receiver");
+        probe_only(ui, can_probe, |ui| {
+            if ui.button("Rescan").clicked() {
+                *rescan = true;
+            }
+            let shown =
+                cfg.astra918.serial.clone().unwrap_or_else(|| "First Astra918 found".into());
+            ComboBox::from_id_salt("astra918-device").selected_text(shown).show_styled(ui, |ui| {
+                if ui
+                    .selectable_label(cfg.astra918.serial.is_none(), "First Astra918 found")
+                    .clicked()
+                {
+                    cfg.astra918.serial = None;
+                }
+                for d in devices {
+                    if let Some(serial) = &d.serial {
+                        if ui
+                            .selectable_label(
+                                cfg.astra918.serial.as_ref() == Some(serial),
+                                d.label(),
+                            )
+                            .clicked()
+                        {
+                            cfg.astra918.serial = Some(serial.clone());
+                        }
+                    } else {
+                        ui.label(d.label());
+                    }
+                }
+            });
+        });
+    });
+    ui.label(RichText::new("The 120 ksps I/Q stream uses only the vendor USB interface. Firmware audio and CAT remain available to WSJT-X.").weak());
+    let Some(caps) = caps.filter(|c| c.driver == "astra918") else {
+        ui.label("Connect the receiver to see its current controls.");
+        return;
+    };
+    let value = |key: &str| -> i32 {
+        caps.settings.iter().find(|s| s.key == key).and_then(|s| s.value.parse().ok()).unwrap_or(0)
+    };
+    let send = |cmds: &mut Vec<Command>, key: &str, n: i32| {
+        cmds.push(Command::SetDeviceSetting { key: key.into(), value: n.to_string() });
+    };
+    egui::Grid::new("astra918-controls").num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
+        ui.label("RF input");
+        let current = value("astra.input");
+        ComboBox::from_id_salt("astra-input")
+            .selected_text(*["Auto", "LF", "HF", "VHF"].get(current as usize).unwrap_or(&"Unknown"))
+            .show_styled(ui, |ui| {
+                for (n, name) in ["Auto", "LF", "HF", "VHF"].iter().enumerate() {
+                    if ui.selectable_label(current == n as i32, *name).clicked() {
+                        send(cmds, "astra.input", n as i32);
+                    }
+                }
+            });
+        ui.end_row();
+        for (label, key) in [("RF gain mode", "astra.rf_mode"), ("IF gain mode", "astra.if_mode")] {
+            ui.label(label);
+            let current = value(key);
+            ComboBox::from_id_salt(key)
+                .selected_text(if current == 0 { "Auto" } else { "Manual" })
+                .show_styled(ui, |ui| {
+                    for (n, name) in [(0, "Auto"), (1, "Manual")] {
+                        if ui.selectable_label(current == n, name).clicked() {
+                            send(cmds, key, n);
+                        }
+                    }
+                });
+            ui.end_row();
+        }
+        for (label, key, max) in [
+            ("RF gain code", "astra.rf_gain", 38),
+            ("IF gain code", "astra.if_gain", 31),
+            ("LF gain code", "astra.lf_gain", 15),
+            ("LF attenuator", "astra.attenuator", 15),
+            ("LF/MF capacitor", "astra.capacitor", 4095),
+        ] {
+            ui.label(label);
+            let mut current = value(key);
+            if ui.add(egui::Slider::new(&mut current, 0..=max)).changed() {
+                send(cmds, key, current);
+            }
+            ui.end_row();
+        }
+        ui.label("Firmware USB audio offset (Hz)");
+        let mut offset = value("astra.audio_offset");
+        if ui.add(egui::Slider::new(&mut offset, -54_500..=54_500)).changed() {
+            send(cmds, "astra.audio_offset", offset);
+        }
+        ui.end_row();
+        ui.label("Firmware USB audio mode");
+        let mode = value("astra.audio_mode");
+        ComboBox::from_id_salt("astra-audio-mode")
+            .selected_text(if mode == 1 { "LSB" } else { "USB" })
+            .show_styled(ui, |ui| {
+                for (n, name) in [(1, "LSB"), (2, "USB")] {
+                    if ui.selectable_label(mode == n, name).clicked() {
+                        send(cmds, "astra.audio_mode", n);
+                    }
+                }
+            });
+        ui.end_row();
+        let filter = caps
+            .settings
+            .iter()
+            .find(|s| s.key == "astra.audio_filter")
+            .map(|s| s.value.as_str())
+            .unwrap_or("300,3000");
+        let (low, high) = filter.split_once(',').unwrap_or(("300", "3000"));
+        let mut low: u16 = low.parse().unwrap_or(300);
+        let mut high: u16 = high.parse().unwrap_or(3000);
+        ui.label("Firmware audio passband (Hz)");
+        ui.horizontal(|ui| {
+            let lo_changed =
+                ui.add(egui::DragValue::new(&mut low).range(0..=4999).prefix("Low ")).changed();
+            let hi_changed =
+                ui.add(egui::DragValue::new(&mut high).range(1..=5000).prefix("High ")).changed();
+            if (lo_changed || hi_changed) && low < high {
+                cmds.push(Command::SetDeviceSetting {
+                    key: "astra.audio_filter".into(),
+                    value: format!("{low},{high}"),
+                });
+            }
+        });
+        ui.end_row();
+    });
+    ui.horizontal(|ui| {
+        if ui.button("Save to receiver").clicked() {
+            cmds.push(Command::SetDeviceSetting { key: "astra.save".into(), value: String::new() });
+        }
+        if ui
+            .button("Retry RF configuration")
+            .on_hover_text(
+                "Ask firmware to retry its last failed RF setup without saving settings.",
+            )
+            .clicked()
+        {
+            cmds.push(Command::SetDeviceSetting {
+                key: "astra.retry".into(),
+                value: String::new(),
+            });
+        }
+    });
+    ui.label(
+        RichText::new(
+            "Controls apply immediately. Only Save writes the receiver's nonvolatile settings.",
+        )
+        .weak(),
+    );
+}
+
 /// rtl_tcp interface: the same dongle as the tab above, on another machine.
 ///
 /// Deliberately the same controls in the same order — an operator who moves a

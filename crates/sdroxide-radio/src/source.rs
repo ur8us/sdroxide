@@ -128,6 +128,11 @@ pub enum ControlUpdate {
 pub trait IqSource: Send {
     fn sample_rate(&self) -> f64;
     fn center_hz(&self) -> f64;
+    /// Firmware-owned audio/CAT dial at connect, when it differs from the I/Q
+    /// centre. The engine adopts it before its first tuning pass.
+    fn initial_rx_dial_hz(&self) -> Option<f64> {
+        None
+    }
     fn set_center_hz(&mut self, hz: f64) -> Result<()>;
 
     /// How far above the operator's VFO this front end wants its LO parked, or
@@ -187,6 +192,11 @@ pub trait IqSource: Send {
     /// where the set of controls is whatever the driver says it is.
     fn set_device_setting(&mut self, _key: &str, _value: &str) -> Result<()> {
         Ok(())
+    }
+    /// Report firmware-owned settings after an out-of-band change. `None`
+    /// means no new snapshot; the engine republishes only changed lists.
+    fn take_settings_update(&mut self) -> Option<Vec<sdroxide_types::DeviceSetting>> {
+        None
     }
     fn current_gains(&self) -> Vec<(String, f64)> {
         Vec::new()
@@ -487,6 +497,12 @@ pub trait IqSource: Send {
     /// tune with a software DDC. No-op for sources whose VFO already equals the
     /// centre or that don't expose a per-VFO offset.
     fn set_if_offset(&mut self, _hz: f64) {}
+
+    /// Mirror the receive VFO into a firmware-owned narrow audio/CAT channel
+    /// without moving the wideband I/Q centre. Default SDRs have no such dial.
+    fn set_rx_dial_hz(&mut self, _hz: f64) -> Result<()> {
+        Ok(())
+    }
 
     /// How long after [`IqSource::set_center_hz`] returns the samples arriving
     /// here are actually on the new centre. Default: no delay worth naming.
@@ -1272,6 +1288,10 @@ impl IqSource for ConvertedSource {
         self.down(self.inner.center_hz())
     }
 
+    fn initial_rx_dial_hz(&self) -> Option<f64> {
+        self.inner.initial_rx_dial_hz().map(|hz| self.down(hz))
+    }
+
     fn set_center_hz(&mut self, hz: f64) -> Result<()> {
         // Chosen but not committed: a refused tune must leave the source on the
         // step it was already using, or the *next* `down()` would relabel the
@@ -1518,6 +1538,14 @@ impl IqSource for ConvertedSource {
     /// Relative (VFO minus IQ centre), so untouched.
     fn set_if_offset(&mut self, hz: f64) {
         self.inner.set_if_offset(hz);
+    }
+
+    fn set_rx_dial_hz(&mut self, hz: f64) -> Result<()> {
+        self.inner.set_rx_dial_hz(hz + self.step.rx_offset_hz)
+    }
+
+    fn take_settings_update(&mut self) -> Option<Vec<sdroxide_types::DeviceSetting>> {
+        self.inner.take_settings_update()
     }
 
     /// A property of the pipeline behind the converter, which a frequency

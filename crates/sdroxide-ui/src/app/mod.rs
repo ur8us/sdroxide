@@ -296,6 +296,7 @@ pub struct SdroxideApp {
     /// HPSDR devices found by the last "Discover" scan in the settings dialog.
     hpsdr_devices: Vec<sdroxide_types::HpsdrDevice>,
     rtlsdr_devices: Vec<sdroxide_types::RtlSdrDevice>,
+    astra918_devices: Vec<sdroxide_types::Astra918Device>,
     rx888_devices: Vec<sdroxide_types::Rx888Device>,
     /// Airspy HF+ receivers found on the last Rescan.
     airspyhf_devices: Vec<sdroxide_types::AirspyHfDevice>,
@@ -1233,6 +1234,7 @@ impl SdroxideApp {
             serial_ports: Vec::new(),
             hpsdr_devices: Vec::new(),
             rtlsdr_devices: Vec::new(),
+            astra918_devices: Vec::new(),
             rx888_devices: Vec::new(),
             airspyhf_devices: Vec::new(),
             elad_devices: Vec::new(),

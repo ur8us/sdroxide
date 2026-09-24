@@ -31,6 +31,7 @@ pub fn probe(req: DeviceProbe, radio: u32) -> ProbeAnswer {
         },
         DeviceProbe::SerialPorts => ProbeAnswer::SerialPorts(sdroxide_cat::available_ports()),
         DeviceProbe::RtlSdr => ProbeAnswer::RtlSdr(sdroxide_rtlsdr::list()),
+        DeviceProbe::Astra918 => ProbeAnswer::Astra918(crate::astra918_source::list()),
         DeviceProbe::Rx888 => ProbeAnswer::Rx888(sdroxide_rx888::list()),
         DeviceProbe::AirspyHf => ProbeAnswer::AirspyHf(sdroxide_airspyhf::list()),
         DeviceProbe::Airspy => ProbeAnswer::Airspy(sdroxide_airspy::list()),

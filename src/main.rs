@@ -1,5 +1,6 @@
 mod airspy_source;
 mod airspyhf_source;
+mod astra918_source;
 mod audio_cat_source;
 mod console;
 mod device_registry;
@@ -845,6 +846,7 @@ fn probe(cli: &Cli, settings: &Settings) -> anyhow::Result<()> {
     // variant. It is the field-diagnosis tool for "does this machine see my
     // dongle, and may this user have it?".
     probe_rtlsdr();
+    probe_astra918();
     probe_rx888();
     probe_airspyhf();
     probe_airspy();
@@ -854,6 +856,19 @@ fn probe(cli: &Cli, settings: &Settings) -> anyhow::Result<()> {
     probe_elad();
     probe_lime();
     probe_soapy(cli, settings)
+}
+
+fn probe_astra918() {
+    let devices = astra918_source::list();
+    if devices.is_empty() {
+        println!("No Astra918 receivers found on USB.");
+    } else {
+        println!("=== Astra918 (native USB driver) ===");
+        for (i, d) in devices.iter().enumerate() {
+            println!("  {i}: {}  [usb c0de:091a]", d.label());
+        }
+    }
+    println!();
 }
 
 fn probe_rtlsdr() {
@@ -1451,6 +1466,7 @@ fn open_configured_source(
         Backend::SmartSdr => open_smartsdr_source(radio, cli.center_hz()),
         Backend::Pluto => open_pluto_source(radio, cli.center_hz(), cli.rate),
         Backend::RtlSdr => open_rtlsdr_source(radio, cli.center_hz()),
+        Backend::Astra918 => open_astra918_source(radio),
         Backend::RtlTcp => open_rtltcp_source(radio, cli.center_hz()),
         Backend::SpyServer => open_spyserver_source(radio, cli.center_hz()),
         Backend::SpyServerVfo => open_spyserver_vfo_source(radio, cli.center_hz()),
@@ -1633,10 +1649,8 @@ fn open_hpsdr_source(
         radio.hpsdr.ddc,
     );
     if src.io_inputs_offered() {
-        caps.antennas_rx = sdroxide_types::HpsdrIoRxInput::ALL
-            .iter()
-            .map(|i| i.label().to_string())
-            .collect();
+        caps.antennas_rx =
+            sdroxide_types::HpsdrIoRxInput::ALL.iter().map(|i| i.label().to_string()).collect();
     }
     Ok((Box::new(src), caps))
 }
@@ -1694,6 +1708,116 @@ fn open_rtlsdr_source(
         .context("opening RTL-SDR dongle")?;
     let caps = rtlsdr_caps(&src, "rtlsdr");
     Ok((Box::new(src), caps))
+}
+
+fn open_astra918_source(radio: &RadioConfig) -> anyhow::Result<(Box<dyn IqSource>, DeviceCaps)> {
+    let src = astra918_source::Astra918Source::open(&radio.astra918)
+        .context("opening Astra918 receiver")?;
+    let status = src.status();
+    let caps = DeviceCaps {
+        driver: "astra918".into(),
+        label: src.describe(),
+        rx_channels: 1,
+        tx_channels: 0,
+        freq_ranges_rx: vec![(70_000.0, 130_000_000.0)],
+        sample_rates: vec![120_000.0],
+        // These are readbacks from firmware; the settings panel sends explicit
+        // commands and does not replay any stale configuration on connection.
+        settings: astra918_settings(status),
+        ..DeviceCaps::default()
+    };
+    Ok((Box::new(src), caps))
+}
+
+fn astra918_settings(s: &astra918_source::Status) -> Vec<sdroxide_types::DeviceSetting> {
+    use sdroxide_types::{DeviceSetting, SettingKind};
+    let add = |key: &str, name: &str, value: String, description: &str, kind| DeviceSetting {
+        key: key.into(),
+        name: name.into(),
+        value,
+        description: description.into(),
+        kind,
+        ..DeviceSetting::default()
+    };
+    vec![
+        add(
+            "astra.input",
+            "RF input",
+            s.input.to_string(),
+            "0 Auto, 1 LF, 2 HF, 3 VHF",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.rf_mode",
+            "RF gain mode",
+            s.rf_mode.to_string(),
+            "0 Auto, 1 Manual",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.if_mode",
+            "IF gain mode",
+            s.if_mode.to_string(),
+            "0 Auto, 1 Manual",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.rf_gain",
+            "RF gain code",
+            s.rf_gain.to_string(),
+            "Receiver RF gain code",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.if_gain",
+            "IF gain code",
+            s.if_gain.to_string(),
+            "Receiver IF gain code",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.lf_gain",
+            "LF gain code",
+            s.lf_gain.to_string(),
+            "Receiver LF gain code",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.attenuator",
+            "LF attenuator",
+            s.attenuator.to_string(),
+            "Receiver LF attenuator code",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.capacitor",
+            "LF/MF capacitor",
+            s.capacitor.to_string(),
+            "0..4095",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.audio_offset",
+            "Firmware USB audio offset",
+            s.offset.to_string(),
+            "Audio/CAT dial minus I/Q center, Hz",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.audio_mode",
+            "Firmware USB audio mode",
+            s.audio_mode.to_string(),
+            "1 LSB, 2 USB",
+            SettingKind::Int,
+        ),
+        add(
+            "astra.audio_filter",
+            "Firmware audio passband",
+            format!("{},{}", s.audio_low, s.audio_high),
+            "low,high Hz",
+            SettingKind::String,
+        ),
+    ]
 }
 
 /// The same dongle on another machine, reached through its `rtl_tcp` server.

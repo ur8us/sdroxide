@@ -1,0 +1,4 @@
+# Astra918 RP2350 composite receiver. Grant USB-node access to the native I/Q
+# controller; the kernel keeps handling the audio and CDC serial interfaces.
+SUBSYSTEM=="usb", ATTRS{idVendor}=="c0de", ATTRS{idProduct}=="091a", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="c0de", ATTRS{idProduct}=="091a", GROUP="plugdev"

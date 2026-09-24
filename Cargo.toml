@@ -195,6 +195,7 @@ sdroxide-relay.workspace = true
 sdroxide-spyserver.workspace = true
 sdroxide-kiwisdr.workspace = true
 sdroxide-ui = { workspace = true, features = ["remote"] }
+nusb.workspace = true
 # `accesskit` is one of eframe's defaults, and turning the defaults off
 # silently switched it back off: without it the whole widget tree is
 # invisible to NVDA, Orca and VoiceOver. It is native-only (it maps to
@@ -254,6 +255,7 @@ assets = [
     ["packaging/linux/60-sdroxide-airspy.rules", "usr/lib/udev/rules.d/", "644"],
     ["packaging/linux/60-sdroxide-hydrasdr.rules", "usr/lib/udev/rules.d/", "644"],
     ["packaging/linux/60-sdroxide-elad.rules", "usr/lib/udev/rules.d/", "644"],
+    ["packaging/linux/60-sdroxide-astra918.rules", "usr/lib/udev/rules.d/", "644"],
     ["packaging/linux/60-sdroxide-limerfe.rules", "usr/lib/udev/rules.d/", "644"],
     ["packaging/linux/60-sdroxide-relay.rules", "usr/lib/udev/rules.d/", "644"],
     ["packaging/icons/sdroxide.svg", "usr/share/icons/hicolor/scalable/apps/sdroxide.svg", "644"],

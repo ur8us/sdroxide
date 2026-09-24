@@ -4787,6 +4787,7 @@ dependencies = [
  "clap",
  "eframe",
  "num-complex",
+ "nusb",
  "rtrb",
  "sdroxide-airspy",
  "sdroxide-airspyhf",

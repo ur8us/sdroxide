@@ -1311,7 +1311,9 @@ use sdroxide_types::{
 /// costs every picture sent while it runs out (issue #397). Appended, so no
 /// surviving discriminant moved, but a v145 station has no name for it and
 /// fails to decode the message carrying it.
-pub const PROTO_VERSION: u16 = 146;
+/// v147 appends Astra918 to Backend and DeviceProbe/ProbeAnswer, plus its
+/// selector to RadioConfig. Old peers cannot decode the expanded config.
+pub const PROTO_VERSION: u16 = 147;
 const VERSION_BYTE: u8 = 0x12;
 
 #[derive(Debug, thiserror::Error)]

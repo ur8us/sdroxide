@@ -277,11 +277,11 @@ jobs:
           # Likewise the udev rules: the .deb drops them in
           # /usr/lib/udev/rules.d, but a tarball user has to install them by
           # hand and cannot do that if they are not in the tarball. Both
-          # variants carry them — the RTL-SDR, RX-888 and Airspy HF+ drivers
-          # are native and present in every build.
+          # variants carry them — these native USB drivers are in every build.
           cp packaging/linux/60-sdroxide-rtlsdr.rules packaging/linux/60-sdroxide-rx888.rules \
              packaging/linux/60-sdroxide-airspyhf.rules packaging/linux/60-sdroxide-hackrf.rules \
              packaging/linux/60-sdroxide-airspy.rules packaging/linux/60-sdroxide-elad.rules \
+             packaging/linux/60-sdroxide-astra918.rules \
              packaging/linux/60-sdroxide-limerfe.rules stage/sdroxide/
           if [[ "${{ matrix.variant }}" == "cat" ]]; then
             cat > stage/sdroxide/README.txt <<'EOF'

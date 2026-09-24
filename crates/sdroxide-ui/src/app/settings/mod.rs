@@ -36,12 +36,12 @@ use self::net::{
     settings_freedv_tab,
 };
 use self::radio::{
-    settings_airspy_tab, settings_airspyhf_tab, settings_cat_tab, settings_elad_tab,
-    settings_fobos_tab, settings_hackrf_tab, settings_hpsdr_tab, settings_hydrasdr_tab,
-    settings_icomnet_tab, settings_kiwisdr_tab, settings_lime_tab, settings_pluto_tab,
-    settings_rtlsdr_tab, settings_rtltcp_tab, settings_rx888_tab, settings_sdrplay_tab,
-    settings_smartsdr_tab, settings_soapy_devices, settings_soapy_tab, settings_spyserver_tab,
-    settings_tci_tab,
+    settings_airspy_tab, settings_airspyhf_tab, settings_astra918_tab, settings_cat_tab,
+    settings_elad_tab, settings_fobos_tab, settings_hackrf_tab, settings_hpsdr_tab,
+    settings_hydrasdr_tab, settings_icomnet_tab, settings_kiwisdr_tab, settings_lime_tab,
+    settings_pluto_tab, settings_rtlsdr_tab, settings_rtltcp_tab, settings_rx888_tab,
+    settings_sdrplay_tab, settings_smartsdr_tab, settings_soapy_devices, settings_soapy_tab,
+    settings_spyserver_tab, settings_tci_tab,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use self::remote::settings_remote_tab;
@@ -169,6 +169,7 @@ pub(in crate::app) struct SettingsIo<'a> {
     /// Re-enumerate the USB bus for RTL-SDR dongles. Cheap and non-invasive —
     /// no device is opened — so it cannot disturb a running stream.
     rtlsdr_rescan: &'a mut bool,
+    astra918_rescan: &'a mut bool,
     rx888_rescan: &'a mut bool,
     /// Re-enumerate the USB bus for Airspy HF+ receivers. Opens nothing.
     airspyhf_rescan: &'a mut bool,
@@ -677,6 +678,7 @@ fn iface_opts(soapy_supported: bool) -> Vec<sdroxide_types::Backend> {
     // Ungated, unlike SoapySDR: the RTL-SDR driver is pure Rust and needs
     // no system library, so it is compiled into every build variant.
     opts.push(sdroxide_types::Backend::RtlSdr);
+    opts.push(sdroxide_types::Backend::Astra918);
     // The same driver over a socket instead of the USB bus — pure Rust and
     // std::net, so it is in every build variant too.
     opts.push(sdroxide_types::Backend::RtlTcp);
@@ -746,6 +748,7 @@ fn free_device_probe(backend: sdroxide_types::Backend) -> Option<sdroxide_types:
     Some(match backend {
         B::Cat => P::RadioAudio,
         B::RtlSdr => P::RtlSdr,
+        B::Astra918 => P::Astra918,
         B::Rx888 => P::Rx888,
         B::AirspyHf => P::AirspyHf,
         B::Airspy => P::Airspy,
@@ -797,6 +800,7 @@ impl SdroxideApp {
             A::RadioAudio { inputs, outputs } => self.radio_audio_devices = Some((inputs, outputs)),
             A::SerialPorts(p) => self.serial_ports = p,
             A::RtlSdr(d) => self.rtlsdr_devices = d,
+            A::Astra918(d) => self.astra918_devices = d,
             A::Rx888(d) => self.rx888_devices = d,
             A::AirspyHf(d) => self.airspyhf_devices = d,
             A::Airspy(d) => self.airspy_devices = d,
@@ -949,6 +953,7 @@ impl SdroxideApp {
         let mut speech_test = false;
         let mut hpsdr_discover = false;
         let mut rtlsdr_rescan = false;
+        let mut astra918_rescan = false;
         let mut rx888_rescan = false;
         let mut airspyhf_rescan = false;
         let mut airspyhf_copy_report = false;
@@ -1112,6 +1117,7 @@ impl SdroxideApp {
                             audio_pick: &mut audio_pick,
                             hpsdr_discover: &mut hpsdr_discover,
                             rtlsdr_rescan: &mut rtlsdr_rescan,
+                            astra918_rescan: &mut astra918_rescan,
                             rx888_rescan: &mut rx888_rescan,
                             airspyhf_rescan: &mut airspyhf_rescan,
                             airspyhf_copy_report: &mut airspyhf_copy_report,
@@ -1317,6 +1323,9 @@ impl SdroxideApp {
             // USB enumeration only — no device is opened, so this is safe to
             // press at any time, including while a dongle is streaming.
             self.ask_device(ctx, P::RtlSdr);
+        }
+        if astra918_rescan {
+            self.ask_device(ctx, P::Astra918);
         }
         if sdrplay_rescan {
             self.ask_device(ctx, P::SdrPlay);
@@ -2386,6 +2395,15 @@ impl SdroxideApp {
                         &self.rtlsdr_devices,
                         io.radio_edit,
                         io.rtlsdr_rescan,
+                        io.can_probe,
+                        cmds,
+                    ),
+                    Backend::Astra918 => settings_astra918_tab(
+                        ui,
+                        &self.astra918_devices,
+                        io.radio_edit,
+                        self.caps.as_ref(),
+                        io.astra918_rescan,
                         io.can_probe,
                         cmds,
                     ),

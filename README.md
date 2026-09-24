@@ -401,6 +401,20 @@ starting sdroxide before the rig is fine:
   an RTL-SDR Blog V4's built-in upconverter, or on other sticks by direct
   sampling the ADC's Q branch (the V3's HF port). Bias tee and ppm correction
   are on the Radio tab; see "RTL-SDR permissions" under Building.
+
+- **Astra918 (USB)** — RP2350 receiver with a fixed 120 ksps complex I/Q
+  stream. Select **Astra918 (USB)** in Settings → Radio and choose its serial
+  if more than one is attached. SdroXide claims only the vendor USB interface;
+  the USB audio card and CAT serial port remain available to WSJT-X. CAT dial
+  changes move SdroXide's VFO and spectrum. SdroXide VFO changes move the
+  firmware USB-audio channel within its passband; tuning near the I/Q edge
+  recenters the RF window when the audio filter needs more room.
+  The Radio tab offers RF input, gain codes/modes, LF/MF capacitor, firmware
+  audio offset/mode/passband, and explicit **Save to receiver**. Controls apply
+  immediately; Save is the only action that writes receiver flash. Close other
+  vendor-interface controllers (SDR++ or Astra918 GUI) before connecting.
+  On Linux, install `packaging/linux/60-sdroxide-astra918.rules` and reconnect
+  the USB cable if the vendor interface cannot be claimed.
   
 - **RTL-SDR over rtl_tcp (network)** — the same dongle on another machine — a
   Raspberry Pi at the antenna, say — published with `rtl_tcp -a 0.0.0.0`. The
@@ -1595,4 +1609,3 @@ network counts as conveying it to them, so they have to be offered the
 Corresponding Source.** Using sdroxide on your own machine changes nothing. The
 model is confined to the `sdroxide-deepcw` crate, and the wasm web client links
 none of it.
-

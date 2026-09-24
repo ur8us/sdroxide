@@ -3478,8 +3478,8 @@ fn engine_thread(
     let mut state = RadioState::default();
     state.center_hz = source.center_hz();
     state.sample_rate = source.sample_rate();
-    state.vfo_a_hz = source.center_hz();
-    state.vfo_b_hz = source.center_hz();
+    state.vfo_a_hz = source.initial_rx_dial_hz().unwrap_or_else(|| source.center_hz());
+    state.vfo_b_hz = state.vfo_a_hz;
     state.band = Band::containing(state.vfo_a_hz);
     state.gains = source.current_gains();
     state.tx_gains = source.current_tx_gains();
@@ -4245,6 +4245,12 @@ fn engine_thread(
         let updates = engine.source.poll_control();
         for u in updates {
             engine.apply_control(u);
+        }
+        if let Some(settings) = engine.source.take_settings_update()
+            && settings != engine.caps.settings
+        {
+            engine.caps.settings = settings;
+            let _ = engine.event_tx.send(RadioEvent::CapabilitiesUpdated(engine.caps.clone()));
         }
         // Asked after them, because one of those updates may be the answer:
         // whether the front end's centre is a dial we can move is not fixed for
@@ -14254,6 +14260,9 @@ impl Engine {
         // Keep a wideband-IQ rig's own VFO on our dial (TCI); no-op elsewhere. This
         // way returning from TX doesn't snap the rig back to the IQ centre.
         self.source.set_if_offset(main_offset);
+        if let Err(e) = self.source.set_rx_dial_hz(dial) {
+            warn!("firmware audio dial did not follow RX VFO: {e}");
+        }
         // On a screen wider than the skim window the dial decides which part of
         // it is skimmed ([`skim_center_for`]), and tuning inside the span moves
         // the dial without moving the front end or the client's view — so this

@@ -165,10 +165,12 @@ pub enum Backend {
     /// and a machine without it enumerates nothing and opening explains what
     /// to install. Appended last, for the same reason as `SmartSdr` above.
     Fobos,
+    /// Astra918 RP2350 composite USB receiver: 120 ksps I/Q alongside USB audio and CAT.
+    Astra918,
 }
 
 impl Backend {
-    pub const ALL: [Backend; 22] = [
+    pub const ALL: [Backend; 23] = [
         Backend::Auto,
         Backend::Soapy,
         Backend::Cat,
@@ -191,6 +193,7 @@ impl Backend {
         Backend::Lime,
         Backend::HydraSdr,
         Backend::Fobos,
+        Backend::Astra918,
     ];
     pub fn label(self) -> &'static str {
         match self {
@@ -216,6 +219,7 @@ impl Backend {
             Backend::Lime => "LimeSDR + LimeRFE (LimeSuite)",
             Backend::HydraSdr => "HydraSDR RFOne (USB)",
             Backend::Fobos => "RigExpert Fobos SDR (USB)",
+            Backend::Astra918 => "Astra918 (USB)",
             Backend::None => "Not configured",
         }
     }
@@ -7274,6 +7278,32 @@ pub struct RadioConfig {
     /// exactly right: no row means no trim, and the radio transmits at the
     /// operator's Drive setting on every band as it always did.
     pub tx_drive_trim: Vec<BandDriveTrim>,
+    /// Astra918 device selector. Receiver controls are owned by firmware and
+    /// read on connection; this config never overwrites them.
+    pub astra918: Astra918Config,
+}
+
+/// Select a composite Astra918 by USB serial, or take the first one found.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Astra918Config {
+    pub serial: Option<String>,
+}
+
+/// A non-invasive USB descriptor result for the receiver picker.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Astra918Device {
+    pub serial: Option<String>,
+    pub name: String,
+}
+
+impl Astra918Device {
+    pub fn label(&self) -> String {
+        match &self.serial {
+            Some(serial) => format!("{} (serial {serial})", self.name),
+            None => format!("{} [no serial; first match only]", self.name),
+        }
+    }
 }
 
 impl RadioConfig {

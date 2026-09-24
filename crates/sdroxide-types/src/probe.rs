@@ -22,9 +22,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AirspyDevice, AirspyHfDevice, EladDevice, FobosDevice, HackRfDevice, HpsdrDevice,
-    HydraSdrDevice, IcomNetConfig, LimeDevice, PlutoDevice, PublicSdrDirectory, RtlSdrDevice,
-    Rx888Device, SdrPlayDevice, SmartSdrDevice, SoapyDeviceInfo,
+    AirspyDevice, AirspyHfDevice, Astra918Device, EladDevice, FobosDevice, HackRfDevice,
+    HpsdrDevice, HydraSdrDevice, IcomNetConfig, LimeDevice, PlutoDevice, PublicSdrDirectory,
+    RtlSdrDevice, Rx888Device, SdrPlayDevice, SmartSdrDevice, SoapyDeviceInfo,
 };
 
 /// A question about the machine the radio is attached to.
@@ -130,6 +130,8 @@ pub enum DeviceProbe {
     /// usual reason: appending is what leaves every surviving discriminant
     /// where a peer already expects it.
     Fobos,
+    /// Non-invasive descriptor enumeration of Astra918 composite receivers.
+    Astra918,
 }
 
 /// A connection test: open, ask what is there, and hang up again.
@@ -253,4 +255,5 @@ pub enum ProbeAnswer {
     /// The Fobos SDRs that machine can see. After `Relays` for the same
     /// reason [`DeviceProbe::Fobos`] is.
     Fobos(Vec<FobosDevice>),
+    Astra918(Vec<Astra918Device>),
 }
