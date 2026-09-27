@@ -48,6 +48,8 @@ const fn s(lo: f64, hi: f64, label: &'static str, kind: Kind) -> Seg {
 /// drawn per region, so the caller has it in hand.
 fn ham_label(band: Band, region: Region) -> &'static str {
     match band {
+        Band::M2200 => "2200m HAM",
+        Band::M630 => "630m HAM",
         Band::M160 => "160m HAM",
         Band::M80 => "80m HAM",
         Band::M60 => "60m HAM",
@@ -152,7 +154,7 @@ fn coarse(region: Region) -> Vec<Seg> {
 }
 
 /// The fine tier: the region's sub-segments where there are any, and the whole
-/// band where there are not (everything above 30 MHz).
+/// band where there are not (LF/MF and everything above 30 MHz).
 fn fine(region: Region) -> Vec<Seg> {
     let segs = sdroxide_types::segments_in(region);
     let mut v = non_ham(region);

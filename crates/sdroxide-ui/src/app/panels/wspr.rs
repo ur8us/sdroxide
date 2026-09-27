@@ -523,7 +523,7 @@ impl SdroxideApp {
         });
 
         // The bands the hop cycle visits, shown only when it is running: a row
-        // of nine chips is a lot to carry for a station that is staying put.
+        // of band chips is a lot to carry for a station that is staying put.
         if self.digi_cfg_edit.wspr_hop {
             ui.add_space(4.0);
             ui.horizontal_wrapped(|ui| {
@@ -537,7 +537,7 @@ impl SdroxideApp {
                         continue;
                     }
                     // The saved order, not the bar's — see `Band::wire_index`.
-                    let bit = 1u16 << b.wire_index();
+                    let bit = 1u32 << b.wire_index();
                     if crate::chrome::chip(ui, mask & bit != 0, RichText::new(b.label()).size(9.5))
                         .clicked()
                     {

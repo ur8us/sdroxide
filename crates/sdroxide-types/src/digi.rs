@@ -1876,10 +1876,11 @@ pub struct DigiConfig {
     /// samples the whole spectrum instead of one slice of it.
     #[serde(default)]
     pub wspr_hop: bool,
-    /// WSPR: which bands the hop cycle visits, one bit per index into
-    /// [`crate::Band::ALL`]. Ignored unless `wspr_hop`.
+    /// WSPR: which bands the hop cycle visits, one bit per
+    /// [`crate::Band::wire_index`]. Ignored unless `wspr_hop`.
+    /// 32 bits allow the appended LF/MF bands without moving saved HF bits.
     #[serde(default = "wspr_default_hop_bands")]
-    pub wspr_hop_bands: u16,
+    pub wspr_hop_bands: u32,
     /// WSPR: upload what we decode to wsprnet.org.
     ///
     /// On by default, unlike transmitting: reporting what you hear is the
@@ -1895,7 +1896,7 @@ fn wspr_default_power() -> i16 {
     37
 }
 
-fn wspr_default_hop_bands() -> u16 {
+fn wspr_default_hop_bands() -> u32 {
     // 80/40/30/20/17/15/12/10 — the bands with a WSPR dial and enough traffic
     // to be worth a slot. 160 m is left out of the default cycle because it is
     // dead by day, and adding it costs a whole slot every time round.
@@ -1907,7 +1908,7 @@ fn wspr_default_hop_bands() -> u16 {
     use crate::Band;
     [Band::M80, Band::M40, Band::M30, Band::M20, Band::M17, Band::M15, Band::M12, Band::M10]
         .iter()
-        .fold(0u16, |m, b| m | (1 << b.wire_index()))
+        .fold(0u32, |m, b| m | (1 << b.wire_index()))
 }
 
 /// Default for [`DigiConfig::sstv_banner_left`] — the operator's own callsign,
@@ -2209,6 +2210,10 @@ pub fn fmt_report(db: i16) -> String {
 pub fn adif_band(freq_hz: f64) -> &'static str {
     let mhz = freq_hz / 1e6;
     match mhz {
+        // ADIF calls the 2200 m band "2190m".
+        m if (0.1357..=0.1378).contains(&m) => "2190m",
+        m if (0.472..=0.479).contains(&m) => "630m",
+        m if m < 1.8 => "",
         m if m < 2.0 => "160m",
         m if m < 4.0 => "80m",
         m if m < 5.5 => "60m",
@@ -2921,6 +2926,11 @@ mod tests {
     #[test]
     fn every_band_logs_under_its_own_adif_name() {
         for (hz, band) in [
+            (136_000.0, "2190m"),
+            (137_500.0, "2190m"),
+            (474_200.0, "630m"),
+            (475_700.0, "630m"),
+            (500_000.0, ""),
             (1_840_000.0, "160m"),
             (28_074_000.0, "10m"),
             (50_313_000.0, "6m"),
@@ -2972,6 +2982,22 @@ mod tests {
                 assert!(!inside_lo.is_empty(), "{b:?} in {region:?} has no ADIF name");
             }
         }
+    }
+
+    #[test]
+    fn wspr_hop_mask_preserves_old_settings_and_round_trips_lf_mf() {
+        assert_eq!(wspr_default_hop_bands(), 1018);
+        // Postcard uses the same varint representation for the old u16 mask.
+        let old = postcard::to_allocvec(&1018u16).unwrap();
+        assert_eq!(postcard::from_bytes::<u32>(&old).unwrap(), wspr_default_hop_bands());
+        let mask = wspr_default_hop_bands()
+            | (1 << crate::Band::M2200.wire_index())
+            | (1 << crate::Band::M630.wire_index());
+        let cfg = DigiConfig { wspr_hop_bands: mask, ..DigiConfig::default() };
+        let json = serde_json::to_string(&cfg).unwrap();
+        assert_eq!(serde_json::from_str::<DigiConfig>(&json).unwrap().wspr_hop_bands, mask);
+        let wire = postcard::to_allocvec(&cfg).unwrap();
+        assert_eq!(postcard::from_bytes::<DigiConfig>(&wire).unwrap().wspr_hop_bands, mask);
     }
 
     /// Issue #341: the WSJT-X ADIF datagram carries a *record*. A file export

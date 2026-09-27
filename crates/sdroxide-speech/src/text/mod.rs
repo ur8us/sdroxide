@@ -168,6 +168,8 @@ impl<'a> Speaker<'a> {
     /// A band, in the words its edges are known by.
     pub fn band(&self, b: Band) -> &'static str {
         match b {
+            Band::M2200 => "twenty two hundred meters",
+            Band::M630 => "six thirty meters",
             Band::M160 => "one sixty meters",
             Band::M80 => "eighty meters",
             Band::M60 => "sixty meters",

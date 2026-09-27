@@ -237,14 +237,16 @@ fn band_group(band: sdroxide_types::Band) -> Option<&'static str> {
         Band::M30 | Band::M20 => Some("30m-20m"),
         Band::M17 | Band::M15 => Some("17m-15m"),
         Band::M12 | Band::M10 => Some("12m-10m"),
-        // Not published. 160 m and 60 m are below and inside the range
-        // respectively; 6 m and up are covered — if at all — by the sporadic-E
+        // Not published. LF/MF and 160 m are below the range; 60 m is inside it.
+        // 6 m and up are covered — if at all — by the sporadic-E
         // and aurora entries, which are about a phenomenon rather than a band
         // and are not interchangeable with a Good/Fair/Poor verdict. The
         // microwave bands are not an HF forecast's business at all: what opens
         // them is rain scatter, aircraft and the troposphere, none of which a
         // solar-flux verdict knows anything about.
-        Band::M160
+        Band::M2200
+        | Band::M630
+        | Band::M160
         | Band::M60
         // 11 m is inside the range the "12m-10m" verdict covers, but it is not
         // one of the bands that verdict is published *about* — it is not an

@@ -79,10 +79,16 @@ pub enum Band {
     /// Appended for the reason [`Band::M70`] gives; [`Band::ALL`] puts it
     /// between 12 m and 10 m, where the frequencies are.
     M11,
+    /// 2200 m — 135.7–137.8 kHz. Appended to preserve saved band indices.
+    M2200,
+    /// 630 m — 472–479 kHz, the amateur allocation near 500 kHz.
+    M630,
 }
 
 impl Band {
-    pub const ALL: [Band; 23] = [
+    pub const ALL: [Band; 25] = [
+        Band::M2200,
+        Band::M630,
         Band::M160,
         Band::M80,
         Band::M60,
@@ -128,7 +134,7 @@ impl Band {
     ///
     /// Append-only, forever. A new band goes on the end here and wherever it
     /// belongs in [`Band::ALL`]; the two lists are deliberately different.
-    const DECLARED: [Band; 23] = [
+    const DECLARED: [Band; 25] = [
         Band::M160,
         Band::M80,
         Band::M60,
@@ -152,6 +158,8 @@ impl Band {
         Band::Cm6,
         Band::Cm3,
         Band::M11,
+        Band::M2200,
+        Band::M630,
     ];
 
     /// This band's position in the *declaration* order, which is append-only
@@ -186,6 +194,8 @@ impl Band {
     /// station is. This is what the operator reads; that is what the file says.
     pub fn label_in(self, region: Region) -> &'static str {
         match self {
+            Band::M2200 => "2200M",
+            Band::M630 => "630M",
             Band::M160 => "160M",
             Band::M80 => "80M",
             Band::M60 => "60M",
@@ -280,6 +290,8 @@ impl Band {
             Region::R3 => Some(r3),
         };
         match self {
+            Band::M2200 => Some((135_700.0, 137_800.0)),
+            Band::M630 => Some((472_000.0, 479_000.0)),
             Band::M160 => by_region(
                 (1_810_000.0, 2_000_000.0),
                 (1_800_000.0, 2_000_000.0),
@@ -401,6 +413,9 @@ impl Band {
     pub fn default_entry(self) -> (f64, crate::Mode) {
         use crate::Mode;
         match self {
+            // USB dial frequencies shared by WSPR and JT9 in WSJT-X.
+            Band::M2200 => (136_000.0, Mode::Usb),
+            Band::M630 => (474_200.0, Mode::Usb),
             Band::M160 => (1_840_000.0, Mode::Lsb),
             Band::M80 => (3_700_000.0, Mode::Lsb),
             Band::M60 => (5_357_000.0, Mode::Usb),
@@ -538,6 +553,18 @@ mod tests {
             Band::M6,
             Band::M2,
             Band::Gen,
+            Band::M70,
+            Band::M4,
+            Band::M125,
+            Band::Cm33,
+            Band::Cm23,
+            Band::Cm13,
+            Band::Cm9,
+            Band::Cm6,
+            Band::Cm3,
+            Band::M11,
+            Band::M2200,
+            Band::M630,
         ]
         .into_iter()
         .enumerate()

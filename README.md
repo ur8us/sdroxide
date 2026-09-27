@@ -158,6 +158,18 @@ message format, a panel and a logbook:
 
 ## WSPR
 
+The band selector includes **2200 m** (135.7–137.8 kHz), **630 m**
+(472–479 kHz, the amateur band near 500 kHz), and **60 m**. WSPR USB dial
+presets are **136.000 kHz**, **474.200 kHz**, and **5.364700 MHz**, respectively,
+following [WSPRnet's frequency list](https://www.wsprnet.org/drupal/).
+The 60 m FT8/FT4 preset is **5.357 MHz**, as in
+[WSJT-X](https://github.com/WSJTX/wsjtx/blob/master/models/FrequencyList.cpp);
+FT2 uses **5.360 MHz**. The LF/MF band buttons retain the selected digital
+mode and use 136.000/474.200 kHz when there is no mode-specific preset.
+These are band/preset additions for the existing decoders; JT9/JT65 decoding
+is not implemented. Existing band-plan files gain the LF/MF bands at startup,
+while saved band memories and WSPR hopping selections retain their meanings.
+
 Selecting **WSPR** opens a reception list beside the world map, and a beacon
 status pane. WSPR is not a QSO mode — a transmission carries a callsign, a grid
 and a power level and nothing else — so what the panel shows is measurements of

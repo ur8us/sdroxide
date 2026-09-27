@@ -718,6 +718,18 @@ mod tests {
     }
 
     #[test]
+    fn hopping_can_select_lf_mf_and_sixty_metres_without_enabling_hf() {
+        let mask = [Band::M2200, Band::M630, Band::M60]
+            .iter()
+            .fold(0u32, |mask, b| mask | (1 << b.wire_index()));
+        let c = ctrl(DigiConfig { wspr_hop: true, wspr_hop_bands: mask, ..cfg(0) });
+        assert_eq!(c.hop_target(0), Some(136_000.0));
+        assert_eq!(c.hop_target(1), Some(474_200.0));
+        assert_eq!(c.hop_target(2), Some(5_364_700.0));
+        assert_eq!(c.hop_target(3), Some(136_000.0));
+    }
+
+    #[test]
     fn the_audio_frequency_is_clamped_into_the_window() {
         let mut c = ctrl(cfg(0));
         c.set_audio_hz(200.0);

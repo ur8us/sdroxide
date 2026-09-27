@@ -210,15 +210,17 @@ pub fn prop_ramp_at(t: f32) -> [u8; 3] {
 pub fn band_color(band: sdroxide_types::Band) -> [u8; 3] {
     use sdroxide_types::Band;
     match band {
-        Band::M160 => [176, 40, 40], // deep red
-        Band::M80 => [214, 92, 32],  // orange
-        Band::M60 => [222, 150, 40], // amber
-        Band::M40 => [226, 208, 52], // yellow
-        Band::M30 => [150, 214, 60], // yellow-green
-        Band::M20 => [58, 200, 96],  // green
-        Band::M17 => [46, 200, 170], // teal
-        Band::M15 => [52, 168, 226], // sky
-        Band::M12 => [70, 116, 232], // blue
+        Band::M2200 => [158, 122, 82], // bronze
+        Band::M630 => [198, 132, 142], // muted rose
+        Band::M160 => [176, 40, 40],   // deep red
+        Band::M80 => [214, 92, 32],    // orange
+        Band::M60 => [222, 150, 40],   // amber
+        Band::M40 => [226, 208, 52],   // yellow
+        Band::M30 => [150, 214, 60],   // yellow-green
+        Band::M20 => [58, 200, 96],    // green
+        Band::M17 => [46, 200, 170],   // teal
+        Band::M15 => [52, 168, 226],   // sky
+        Band::M12 => [70, 116, 232],   // blue
         // 11 m sits between them in frequency but not in the rotation: it is
         // not an amateur band, and a swatch in the run would say it was. A
         // desaturated slate, out of the sequence on purpose.

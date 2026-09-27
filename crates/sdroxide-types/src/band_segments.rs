@@ -313,6 +313,7 @@ pub fn is_digi_segment(hz: f64) -> bool {
 pub const FT8_DIALS: &[f64] = &[
     1_840_000.0,
     3_573_000.0,
+    5_357_000.0,
     7_074_000.0,
     10_136_000.0,
     14_074_000.0,
@@ -324,6 +325,7 @@ pub const FT8_DIALS: &[f64] = &[
 /// FT4 dial frequencies (Hz).
 pub const FT4_DIALS: &[f64] = &[
     3_575_000.0,
+    5_357_000.0,
     7_047_500.0,
     10_140_000.0,
     14_080_000.0,
@@ -365,8 +367,11 @@ pub const JS8_DIALS: &[f64] = &[
 /// WSPR dial frequencies (Hz). The 200 Hz WSPR window sits ~1400–1600 Hz above
 /// each dial; slow-CW (QRSS/MEPT) beacons cluster just below it (~1000–1400 Hz).
 pub const WSPR_DIALS: &[f64] = &[
+    136_000.0,
+    474_200.0,
     1_836_600.0,
     3_568_600.0,
+    5_364_700.0,
     7_038_600.0,
     10_138_700.0,
     14_095_600.0,
@@ -1098,6 +1103,32 @@ mod tests {
         assert_eq!(segment_kind_at_in(7_074_000.0, Region::R1), Some(Digi));
         // Outside any HF ham segment.
         assert_eq!(segment_kind_at_in(15_000_000.0, Region::R1), None);
+    }
+
+    #[test]
+    fn lf_mf_and_sixty_metre_weak_signal_presets() {
+        use crate::{Band, Mode};
+        for region in Region::ALL {
+            for (band, dial) in
+                [(Band::M2200, 136_000.0), (Band::M630, 474_200.0), (Band::M60, 5_364_700.0)]
+            {
+                let channels = digi_channels_in_region(Mode::Wspr, band, region);
+                assert_eq!(channels.len(), 1, "{band:?} in {region:?}");
+                assert_eq!(channels[0].dial_hz, dial);
+                // WSPR's actual RF window must also fit in the band.
+                assert_eq!(Band::containing_in(dial + 1400.0, region), band);
+                assert_eq!(Band::containing_in(dial + 1600.0, region), band);
+            }
+            for mode in [Mode::Ft8, Mode::Ft4] {
+                let channels = digi_channels_in_region(mode, Band::M60, region);
+                assert_eq!(channels.len(), 1);
+                assert_eq!(channels[0].dial_hz, 5_357_000.0);
+            }
+            assert_eq!(
+                digi_channels_in_region(Mode::Ft2, Band::M60, region)[0].dial_hz,
+                5_360_000.0
+            );
+        }
     }
 
     /// An emission has width, so the transmit lockout asks about a span rather

@@ -378,6 +378,8 @@ const BANDS_ADDED_SINCE_THE_FILE: &[Band] = &[
     Band::Cm6,
     Band::Cm3,
     Band::M11,
+    Band::M2200,
+    Band::M630,
 ];
 
 impl TryFrom<PlanFile> for BandPlan {
@@ -778,6 +780,14 @@ mod tests {
                 "region2":{"bands":[{"band":"M20","lo_mhz":14.0,"hi_mhz":14.35}]},
                 "region3":{"bands":[{"band":"M20","lo_mhz":14.0,"hi_mhz":14.35}]}}"#,
         );
+        for r in Region::ALL {
+            let plan = older.region(r);
+            assert_eq!(plan.edges(Band::M2200), Some((135_700.0, 137_800.0)));
+            assert_eq!(plan.edges(Band::M630), Some((472_000.0, 479_000.0)));
+            assert_eq!(plan.containing(136_000.0), Band::M2200);
+            assert_eq!(plan.containing(474_200.0), Band::M630);
+            assert_eq!(plan.containing(500_000.0), Band::Gen);
+        }
         assert_eq!(older.region(Region::R1).edges(Band::M4), Some((70_000_000.0, 70_500_000.0)));
         assert_eq!(older.region(Region::R1).containing(70_174_000.0), Band::M4);
         // And only into the region that has the band at all.
