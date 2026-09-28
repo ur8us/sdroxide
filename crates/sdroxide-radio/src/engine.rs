@@ -15973,7 +15973,7 @@ impl Engine {
     /// Whether the front end says it can put its LO here. A front end that
     /// publishes no ranges at all is taken at its word and asked directly.
     fn can_tune(&self, center_hz: f64) -> bool {
-        if self.caps.driver == "astra918" && (70_000.0..=170_000_000.0).contains(&center_hz) {
+        if self.caps.driver == "astra918" && (70_000.0..=260_000_000.0).contains(&center_hz) {
             return true;
         }
         self.caps.may_rx_hz(center_hz)
@@ -16067,7 +16067,7 @@ impl Engine {
 /// converter switched on or off under a running radio — it is a short step from
 /// where they wanted to be.
 fn nearest_rx_hz(caps: &DeviceCaps, hz: f64) -> Option<f64> {
-    if caps.driver == "astra918" && (70_000.0..=170_000_000.0).contains(&hz) {
+    if caps.driver == "astra918" && (70_000.0..=260_000_000.0).contains(&hz) {
         return None;
     }
     if caps.may_rx_hz(hz) {

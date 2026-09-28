@@ -6081,7 +6081,7 @@ fn band_mode_menu(
             let enabled = caps.is_none_or(|c| {
                 b.edges().is_none_or(|(lo, hi)| {
                     c.may_rx_span(lo, hi)
-                        || (c.driver == "astra918" && hi >= 70_000.0 && lo <= 170_000_000.0)
+                        || (c.driver == "astra918" && hi >= 70_000.0 && lo <= 260_000_000.0)
                 })
             });
             let active = match std_hz {

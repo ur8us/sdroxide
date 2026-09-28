@@ -377,18 +377,18 @@ impl IqSource for Astra918Source {
     fn set_center_hz(&mut self, hz: f64) -> sdroxide_radio::Result<()> {
         let tune = || -> Result<u64> {
             ensure!(
-                hz.is_finite() && hz >= 70_000.0 && hz <= 170_000_000.0,
+                hz.is_finite() && hz >= 70_000.0 && hz <= 260_000_000.0,
                 "Astra918 center is outside its tuning range"
             );
             let dial = hz.round() as i128 + self.status.offset as i128;
-            ensure!((70_000..=170_000_000).contains(&dial), "Astra918 dial outside range");
+            ensure!((70_000..=260_000_000).contains(&dial), "Astra918 dial outside range");
             Ok(dial as u64)
         };
         let dial = tune().map_err(radio_error)?;
         self.apply(0x20, &dial.to_le_bytes()).map_err(radio_error)
     }
     fn set_rx_dial_hz(&mut self, hz: f64) -> sdroxide_radio::Result<()> {
-        if !hz.is_finite() || !(70_000.0..=170_000_000.0).contains(&hz) {
+        if !hz.is_finite() || !(70_000.0..=260_000_000.0).contains(&hz) {
             return Err(sdroxide_radio::RadioError::Msg(
                 "Astra918 audio dial outside range".into(),
             ));
@@ -561,7 +561,7 @@ impl Astra918Source {
             "astra.audio_offset" => {
                 let n = number()?;
                 let dial = self.status.center as i128 + n as i128;
-                ensure!((70_000..=170_000_000).contains(&dial), "audio dial outside range");
+                ensure!((70_000..=260_000_000).contains(&dial), "audio dial outside range");
                 self.apply(0x38, &(dial as u64).to_le_bytes())?
             }
             "astra.audio_filter" => {
