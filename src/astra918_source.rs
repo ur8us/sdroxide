@@ -58,6 +58,9 @@ pub struct Status {
     pub audio_mode: u8,
     pub audio_low: u16,
     pub audio_high: u16,
+    pub reference: u8,
+    pub gpio: u8,
+    pub features: u8,
     pub generation: u32,
     pub streaming: bool,
     pub configured: bool,
@@ -91,6 +94,9 @@ fn parse_status(p: &[u8]) -> Result<Status> {
         audio_mode: p[92],
         audio_low: le16(p, 94),
         audio_high: le16(p, 116),
+        reference: p[118],
+        gpio: p[119],
+        features: p[120],
         generation: le32(p, 36),
         streaming: p[34] != 0,
         configured: p[35] != 0,
@@ -105,6 +111,7 @@ fn parse_status(p: &[u8]) -> Result<Status> {
             && s.rf_mode <= 1
             && s.if_mode <= 1
             && s.capacitor <= 4095
+            && s.reference <= 1
             && matches!(s.audio_mode, 1 | 2),
         "Astra918 status contains an invalid setting"
     );
@@ -190,6 +197,7 @@ fn iq_reader(mut ep: Endpoint<Bulk, In>, running: Arc<AtomicBool>, tx: SyncSende
 pub struct Astra918Source {
     control: Control,
     status: Status,
+    features: u8,
     serial: String,
     iq_rx: Receiver<Vec<u8>>,
     running: Arc<AtomicBool>,
@@ -235,8 +243,10 @@ impl Astra918Source {
             usable: true,
         };
         let mut status = control.status()?;
-        ensure!(status.configured, "Astra918 receiver is not configured");
-        control.command(0x31, &[]).context("stopping stale Astra918 I/Q stream")?;
+        let features = status.features;
+        if status.configured {
+            control.command(0x31, &[]).context("stopping stale Astra918 I/Q stream")?;
+        }
         // An interrupted prior host can leave a partial frame in endpoint 85.
         // Drain to a quiet interval before accepting ASIQ records.
         let mut iq_ep = iq_ep;
@@ -246,8 +256,10 @@ impl Astra918Source {
                 break;
             }
         }
-        status = control.setter(0x30, &[]).context("starting Astra918 I/Q stream")?;
-        ensure!(status.streaming, "Astra918 did not start its I/Q stream");
+        if status.configured {
+            status = control.setter(0x30, &[]).context("starting Astra918 I/Q stream")?;
+            ensure!(status.streaming, "Astra918 did not start its I/Q stream");
+        }
         let (tx, iq_rx) = mpsc::sync_channel(32);
         let running = Arc::new(AtomicBool::new(true));
         let flag = Arc::clone(&running);
@@ -260,6 +272,7 @@ impl Astra918Source {
         Ok(Self {
             control,
             status,
+            features,
             serial,
             iq_rx,
             running,
@@ -281,11 +294,17 @@ impl Astra918Source {
     pub fn status(&self) -> &Status {
         &self.status
     }
+    pub fn features(&self) -> u8 {
+        self.features
+    }
     fn apply(&mut self, cmd: u8, bytes: &[u8]) -> Result<()> {
         match self.control.setter(cmd, bytes) {
-            Ok(status) => {
+            Ok(mut status) => {
+                if status.configured && !status.streaming {
+                    status = self.control.setter(0x30, &[])?;
+                }
                 self.settings_dirty |= self.status != status;
-                if !status.streaming {
+                if !status.streaming && status.configured {
                     tracing::warn!("Astra918 I/Q stopped; reconnecting vendor stream");
                     self.reopen = true;
                 }
@@ -294,6 +313,12 @@ impl Astra918Source {
             }
             Err(e) => {
                 self.reopen |= !self.control.usable;
+                if self.control.usable {
+                    if let Ok(status) = self.control.status() {
+                        self.settings_dirty |= self.status != status;
+                        self.status = status;
+                    }
+                }
                 Err(e)
             }
         }
@@ -352,18 +377,18 @@ impl IqSource for Astra918Source {
     fn set_center_hz(&mut self, hz: f64) -> sdroxide_radio::Result<()> {
         let tune = || -> Result<u64> {
             ensure!(
-                hz.is_finite() && hz >= 70_000.0 && hz <= 130_000_000.0,
+                hz.is_finite() && hz >= 70_000.0 && hz <= 170_000_000.0,
                 "Astra918 center is outside its tuning range"
             );
             let dial = hz.round() as i128 + self.status.offset as i128;
-            ensure!((70_000..=130_000_000).contains(&dial), "Astra918 dial outside range");
+            ensure!((70_000..=170_000_000).contains(&dial), "Astra918 dial outside range");
             Ok(dial as u64)
         };
         let dial = tune().map_err(radio_error)?;
         self.apply(0x20, &dial.to_le_bytes()).map_err(radio_error)
     }
     fn set_rx_dial_hz(&mut self, hz: f64) -> sdroxide_radio::Result<()> {
-        if !hz.is_finite() || !(70_000.0..=130_000_000.0).contains(&hz) {
+        if !hz.is_finite() || !(70_000.0..=170_000_000.0).contains(&hz) {
             return Err(sdroxide_radio::RadioError::Msg(
                 "Astra918 audio dial outside range".into(),
             ));
@@ -396,7 +421,8 @@ impl IqSource for Astra918Source {
                 match self.iq_rx.recv_timeout(Duration::from_millis(100)) {
                     Ok(bytes) => self.raw.extend_from_slice(&bytes),
                     Err(mpsc::RecvTimeoutError::Timeout) => {
-                        if self.last_iq.elapsed() > Duration::from_secs(3) {
+                        if self.status.configured && self.last_iq.elapsed() > Duration::from_secs(3)
+                        {
                             tracing::warn!("Astra918 I/Q timed out; reconnecting vendor stream");
                             self.reopen = true;
                         }
@@ -428,7 +454,7 @@ impl IqSource for Astra918Source {
         match self.control.status() {
             Ok(status) => {
                 self.settings_dirty |= self.status != status;
-                if !status.streaming {
+                if !status.streaming && status.configured {
                     tracing::warn!("Astra918 I/Q stopped; reconnecting vendor stream");
                     self.reopen = true;
                 }
@@ -458,7 +484,7 @@ impl IqSource for Astra918Source {
         if !std::mem::take(&mut self.settings_dirty) {
             return None;
         }
-        Some(crate::astra918_settings(&self.status))
+        Some(crate::astra918_settings(&self.status, self.features))
     }
     fn needs_reopen(&self) -> bool {
         self.reopen
@@ -512,6 +538,21 @@ impl Astra918Source {
                 ensure!((0..=4095).contains(&n), "capacitor must be 0..4095");
                 self.apply(0x2d, &(n as u16).to_le_bytes())?
             }
+            "astra.reference" => {
+                ensure!(self.features & 0x40 != 0, "reference selection unsupported");
+                let n = number()?;
+                ensure!((0..=1).contains(&n), "reference must be Internal=0 or External=1");
+                self.apply(0x3a, &[n as u8])?
+            }
+            _ if key.starts_with("astra.gpio") => {
+                ensure!(self.features & 0x80 != 0, "logical GPIO unsupported");
+                let index: u8 = key[10..].parse()?;
+                ensure!(index < 8, "GPIO index must be 0..7");
+                let n = number()?;
+                ensure!((0..=1).contains(&n), "GPIO value must be 0 or 1");
+                let mask = 1u8 << index;
+                self.apply(0x3b, &[mask, if n == 1 { mask } else { 0 }])?
+            }
             "astra.audio_mode" => {
                 let n = number()?;
                 ensure!((1..=2).contains(&n), "audio mode must be LSB=1 or USB=2");
@@ -520,7 +561,7 @@ impl Astra918Source {
             "astra.audio_offset" => {
                 let n = number()?;
                 let dial = self.status.center as i128 + n as i128;
-                ensure!((70_000..=130_000_000).contains(&dial), "audio dial outside range");
+                ensure!((70_000..=170_000_000).contains(&dial), "audio dial outside range");
                 self.apply(0x38, &(dial as u64).to_le_bytes())?
             }
             "astra.audio_filter" => {

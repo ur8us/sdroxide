@@ -1709,6 +1709,39 @@ pub(in crate::app) fn settings_astra918_tab(
         cmds.push(Command::SetDeviceSetting { key: key.into(), value: n.to_string() });
     };
     egui::Grid::new("astra918-controls").num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
+        if caps.settings.iter().any(|s| s.key == "astra.reference") {
+            ui.label("38.4 MHz reference");
+            let reference = value("astra.reference");
+            ComboBox::from_id_salt("astra-reference")
+                .selected_text(if reference == 1 { "External" } else { "Internal" })
+                .show_styled(ui, |ui| {
+                    for (n, name) in [(0, "Internal"), (1, "External")] {
+                        if ui.selectable_label(reference == n, name).clicked() {
+                            send(cmds, "astra.reference", n);
+                        }
+                    }
+                });
+            ui.end_row();
+        }
+        if caps.settings.iter().any(|s| s.key == "astra.gpio0") {
+            ui.label("Logical GPIO");
+            ui.vertical(|ui| {
+                for row in 0..2 {
+                    ui.horizontal(|ui| {
+                        for col in 0..4 {
+                            let index = row * 4 + col;
+                            let key = format!("astra.gpio{index}");
+                            let mut enabled = value(&key) != 0;
+                            if ui.checkbox(&mut enabled, format!("GPIO{index}")).changed() {
+                                send(cmds, &key, i32::from(enabled));
+                            }
+                        }
+                    });
+                }
+                ui.label(RichText::new("Physical pins unassigned").weak());
+            });
+            ui.end_row();
+        }
         ui.label("RF input");
         let current = value("astra.input");
         ComboBox::from_id_salt("astra-input")

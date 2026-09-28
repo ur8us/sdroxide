@@ -6078,8 +6078,12 @@ fn band_mode_menu(
             // offering a band the radio turns out not to reach. Any *overlap*
             // is enough — a receiver that reaches into the band without
             // reaching either end of it still has the band (issue #272).
-            let enabled =
-                caps.is_none_or(|c| b.edges().is_none_or(|(lo, hi)| c.may_rx_span(lo, hi)));
+            let enabled = caps.is_none_or(|c| {
+                b.edges().is_none_or(|(lo, hi)| {
+                    c.may_rx_span(lo, hi)
+                        || (c.driver == "astra918" && hi >= 70_000.0 && lo <= 170_000_000.0)
+                })
+            });
             let active = match std_hz {
                 Some(hz) => (state.active_freq_hz() - hz).abs() < 500.0,
                 None => state.band == b,

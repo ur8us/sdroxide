@@ -1723,13 +1723,16 @@ fn open_astra918_source(radio: &RadioConfig) -> anyhow::Result<(Box<dyn IqSource
         sample_rates: vec![120_000.0],
         // These are readbacks from firmware; the settings panel sends explicit
         // commands and does not replay any stale configuration on connection.
-        settings: astra918_settings(status),
+        settings: astra918_settings(status, src.features()),
         ..DeviceCaps::default()
     };
     Ok((Box::new(src), caps))
 }
 
-fn astra918_settings(s: &astra918_source::Status) -> Vec<sdroxide_types::DeviceSetting> {
+fn astra918_settings(
+    s: &astra918_source::Status,
+    features: u8,
+) -> Vec<sdroxide_types::DeviceSetting> {
     use sdroxide_types::{DeviceSetting, SettingKind};
     let add = |key: &str, name: &str, value: String, description: &str, kind| DeviceSetting {
         key: key.into(),
@@ -1739,7 +1742,7 @@ fn astra918_settings(s: &astra918_source::Status) -> Vec<sdroxide_types::DeviceS
         kind,
         ..DeviceSetting::default()
     };
-    vec![
+    let mut settings = vec![
         add(
             "astra.input",
             "RF input",
@@ -1817,7 +1820,28 @@ fn astra918_settings(s: &astra918_source::Status) -> Vec<sdroxide_types::DeviceS
             "low,high Hz",
             SettingKind::String,
         ),
-    ]
+    ];
+    if features & 0x40 != 0 {
+        settings.push(add(
+            "astra.reference",
+            "38.4 MHz reference",
+            s.reference.to_string(),
+            "0 Internal, 1 External",
+            SettingKind::Int,
+        ));
+    }
+    if features & 0x80 != 0 {
+        for index in 0..8 {
+            settings.push(add(
+                &format!("astra.gpio{index}"),
+                &format!("GPIO{index}"),
+                u8::from(s.gpio & (1 << index) != 0).to_string(),
+                "Logical value; physical pin unassigned",
+                SettingKind::Int,
+            ));
+        }
+    }
+    settings
 }
 
 /// The same dongle on another machine, reached through its `rtl_tcp` server.
