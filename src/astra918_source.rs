@@ -61,6 +61,8 @@ pub struct Status {
     pub reference: u8,
     pub gpio: u8,
     pub features: u8,
+    pub vfo_sign: u8,
+    pub if_frequency: u8,
     pub generation: u32,
     pub streaming: bool,
     pub configured: bool,
@@ -97,6 +99,8 @@ fn parse_status(p: &[u8]) -> Result<Status> {
         reference: p[118],
         gpio: p[119],
         features: p[120],
+        vfo_sign: if p[120] & 0x20 != 0 { p[121] } else { 0 },
+        if_frequency: if p[120] & 0x20 != 0 { p[122] } else { 0 },
         generation: le32(p, 36),
         streaming: p[34] != 0,
         configured: p[35] != 0,
@@ -112,6 +116,8 @@ fn parse_status(p: &[u8]) -> Result<Status> {
             && s.if_mode <= 1
             && s.capacitor <= 4095
             && s.reference <= 1
+            && s.vfo_sign <= 2
+            && s.if_frequency <= 2
             && matches!(s.audio_mode, 1 | 2),
         "Astra918 status contains an invalid setting"
     );
@@ -543,6 +549,12 @@ impl Astra918Source {
                 let n = number()?;
                 ensure!((0..=1).contains(&n), "reference must be Internal=0 or External=1");
                 self.apply(0x3a, &[n as u8])?
+            }
+            "astra.vfo_sign" | "astra.if_frequency" => {
+                ensure!(self.features & 0x20 != 0, "VFO/IF selection unsupported");
+                let n = number()?;
+                ensure!((0..=2).contains(&n), "{key} must be 0..2");
+                self.apply(if key == "astra.vfo_sign" { 0x3c } else { 0x3d }, &[n as u8])?
             }
             _ if key.starts_with("astra.gpio") => {
                 ensure!(self.features & 0x80 != 0, "logical GPIO unsupported");

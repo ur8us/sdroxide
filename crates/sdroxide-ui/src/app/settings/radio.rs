@@ -1709,6 +1709,34 @@ pub(in crate::app) fn settings_astra918_tab(
         cmds.push(Command::SetDeviceSetting { key: key.into(), value: n.to_string() });
     };
     egui::Grid::new("astra918-controls").num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
+        if caps.settings.iter().any(|s| s.key == "astra.vfo_sign") {
+            ui.label("VFO sign");
+            let current = value("astra.vfo_sign");
+            let choices = ["Auto", "LO above signal", "LO below signal"];
+            ComboBox::from_id_salt("astra-vfo-sign")
+                .selected_text(*choices.get(current as usize).unwrap_or(&"Unknown"))
+                .show_styled(ui, |ui| {
+                    for (n, name) in choices.iter().enumerate() {
+                        if ui.selectable_label(current == n as i32, *name).clicked() {
+                            send(cmds, "astra.vfo_sign", n as i32);
+                        }
+                    }
+                });
+            ui.end_row();
+            ui.label("IF frequency");
+            let current = value("astra.if_frequency");
+            let choices = ["Auto (96 kHz)", "96 kHz", "120 kHz"];
+            ComboBox::from_id_salt("astra-if-frequency")
+                .selected_text(*choices.get(current as usize).unwrap_or(&"Unknown"))
+                .show_styled(ui, |ui| {
+                    for (n, name) in choices.iter().enumerate() {
+                        if ui.selectable_label(current == n as i32, *name).clicked() {
+                            send(cmds, "astra.if_frequency", n as i32);
+                        }
+                    }
+                });
+            ui.end_row();
+        }
         if caps.settings.iter().any(|s| s.key == "astra.reference") {
             ui.label("38.4 MHz reference");
             let reference = value("astra.reference");

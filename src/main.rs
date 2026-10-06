@@ -1830,6 +1830,22 @@ fn astra918_settings(
             SettingKind::Int,
         ));
     }
+    if features & 0x20 != 0 {
+        settings.push(add(
+            "astra.vfo_sign",
+            "VFO sign",
+            s.vfo_sign.to_string(),
+            "0 Auto, 1 LO above signal, 2 LO below signal",
+            SettingKind::Int,
+        ));
+        settings.push(add(
+            "astra.if_frequency",
+            "IF frequency",
+            s.if_frequency.to_string(),
+            "0 Auto (96 kHz), 1 96 kHz, 2 120 kHz",
+            SettingKind::Int,
+        ));
+    }
     if features & 0x80 != 0 {
         for index in 0..8 {
             settings.push(add(

@@ -422,7 +422,8 @@ starting sdroxide before the rig is fine:
   firmware USB-audio channel within its passband; tuning near the I/Q edge
   recenters the RF window when the audio filter needs more room.
   The Radio tab offers RF input, gain codes/modes, LF/MF capacitor, firmware
-  audio offset/mode/passband, and explicit **Save to receiver**. Controls apply
+  audio offset/mode/passband, VFO sign (Auto, LO above/below) and IF frequency
+  (Auto, 96 kHz, 120 kHz), and explicit **Save to receiver**. Controls apply
   immediately; Save is the only action that writes receiver flash. Close other
   vendor-interface controllers (SDR++ or Astra918 GUI) before connecting.
   On Linux, install `packaging/linux/60-sdroxide-astra918.rules` and reconnect
